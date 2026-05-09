@@ -93,6 +93,8 @@ class HybridRetriever:
                     f"Run scripts/build_index.py first."
                 )
 
+            import os
+
             import faiss
             from fastembed import TextEmbedding
 
@@ -112,7 +114,12 @@ class HybridRetriever:
             self._dense = faiss.read_index(str(self._dir / DENSE_INDEX_FILE))
             # fastembed wraps the same MiniLM weights via ONNX Runtime —
             # ~3x smaller resident memory than sentence-transformers.
-            self._embed_model = TextEmbedding(model_name=model_name)
+            # `FASTEMBED_CACHE_DIR` (set in the Dockerfile) lets us load
+            # weights pre-baked into the image instead of fetching at boot.
+            cache_dir = os.environ.get("FASTEMBED_CACHE_DIR") or None
+            self._embed_model = TextEmbedding(
+                model_name=model_name, cache_dir=cache_dir
+            )
 
             LOG.info(
                 "Retriever loaded: %d items, model=%s (fastembed)",

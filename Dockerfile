@@ -32,10 +32,11 @@ COPY src ./src
 COPY scripts ./scripts
 COPY data/catalog ./data/catalog
 
-# Pre-build the FAISS+BM25 index inside the image. fastembed downloads the
-# ONNX model into FASTEMBED_CACHE on first use; we direct it to a stable
-# path that we copy into the runtime image.
-ENV FASTEMBED_CACHE=/opt/fastembed_cache
+# Pre-build the FAISS+BM25 index inside the image. fastembed reads
+# `FASTEMBED_CACHE_DIR` (passed through to TextEmbedding's cache_dir kw)
+# and stores the ONNX weights at this path so the runtime stage can COPY
+# them in — no network call at container startup.
+ENV FASTEMBED_CACHE_DIR=/opt/fastembed_cache
 RUN python scripts/build_index.py
 
 # ---------------------------------------------------------------------------
@@ -59,7 +60,7 @@ COPY --from=builder /opt/fastembed_cache /opt/fastembed_cache
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PORT=8000 \
-    FASTEMBED_CACHE=/opt/fastembed_cache
+    FASTEMBED_CACHE_DIR=/opt/fastembed_cache
 
 EXPOSE 8000
 

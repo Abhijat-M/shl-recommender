@@ -53,13 +53,25 @@ def _embed(model_name: str, texts: list[str]) -> np.ndarray:
     ONNX Runtime instead of PyTorch — ~3x lighter resident memory, which
     matters on hosts with a 512 MB cap (e.g. Render Free).
 
+    `FASTEMBED_CACHE_DIR` (env var, optional) controls where the ONNX
+    weights are cached. We pass it explicitly so a multi-stage Docker
+    build can pre-cache in the builder and COPY into the runtime image.
+
     The function is local-imported so command-line tools that don't touch
     embeddings don't pay the import cost.
     """
+    import os
+
     from fastembed import TextEmbedding
 
-    model = TextEmbedding(model_name=model_name)
-    LOG.info("Embedding %d documents with %s (fastembed)", len(texts), model_name)
+    cache_dir = os.environ.get("FASTEMBED_CACHE_DIR") or None
+    model = TextEmbedding(model_name=model_name, cache_dir=cache_dir)
+    LOG.info(
+        "Embedding %d documents with %s (fastembed, cache=%s)",
+        len(texts),
+        model_name,
+        cache_dir or "<default>",
+    )
     # fastembed.embed() is a generator yielding np.ndarray rows.
     embeddings = np.asarray(list(model.embed(texts)), dtype=np.float32)
     return embeddings
