@@ -4,8 +4,11 @@ Loaded once at app startup. Stateless per-request: takes a query string
 (plus optional filters) and returns a ranked list of catalog Assessments.
 
 Why hybrid:
-- Dense retrieval (MiniLM) generalizes across vocabulary mismatches: "Java
-  developer" matches "Java 8 (New)" even though the surface forms differ.
+- Dense retrieval (MiniLM via fastembed/ONNX Runtime) generalizes across
+  vocabulary mismatches: "Java developer" matches "Java 8 (New)" even
+  though the surface forms differ. fastembed (ONNX) keeps resident memory
+  ~3x lower than sentence-transformers (PyTorch) — required for Render
+  Free's 512 MB cap.
 - BM25 catches exact terms the embedding flattens: "OPQ32r", "Verify",
   product codes, version numbers.
 - Reciprocal rank fusion (RRF) is simple, score-free, and robust.
@@ -62,8 +65,8 @@ class HybridRetriever:
     def __init__(self, index_dir: str | Path | None = None, cache_size: int = 128) -> None:
         settings = get_settings()
         self._dir = Path(index_dir or settings.index_path)
-        # The library types for faiss / sentence-transformers / rank-bm25 are
-        # absent or unstable; we type these as `Any` and rely on runtime guards.
+        # The library types for faiss / fastembed / rank-bm25 are absent or
+        # unstable; we type these as `Any` and rely on runtime guards.
         self._dense: Any = None
         self._bm25: Any = None
         self._tokenized: list[list[str]] = []
@@ -91,7 +94,7 @@ class HybridRetriever:
                 )
 
             import faiss
-            from sentence_transformers import SentenceTransformer
+            from fastembed import TextEmbedding
 
             with open(self._dir / META_FILE, "rb") as f:
                 meta = pickle.load(f)
@@ -107,10 +110,14 @@ class HybridRetriever:
             self._tokenized = bm25_pack["tokenized"]
 
             self._dense = faiss.read_index(str(self._dir / DENSE_INDEX_FILE))
-            self._embed_model = SentenceTransformer(model_name)
+            # fastembed wraps the same MiniLM weights via ONNX Runtime —
+            # ~3x smaller resident memory than sentence-transformers.
+            self._embed_model = TextEmbedding(model_name=model_name)
 
             LOG.info(
-                "Retriever loaded: %d items, model=%s", len(self._catalog), model_name
+                "Retriever loaded: %d items, model=%s (fastembed)",
+                len(self._catalog),
+                model_name,
             )
         return self
 
@@ -141,10 +148,15 @@ class HybridRetriever:
         k_dense = self._top_k_dense
         k_sparse = self._top_k_sparse
 
-        # Dense
-        q_vec = self._embed_model.encode(
-            [query], convert_to_numpy=True, normalize_embeddings=True
-        ).astype(np.float32)
+        # Dense — fastembed.embed yields normalized vectors per-row.
+        raw = np.asarray(
+            list(self._embed_model.embed([query])), dtype=np.float32
+        )
+        # Re-normalize defensively (fastembed normalizes for MiniLM but we
+        # don't want to assume that across model variants).
+        norm = np.linalg.norm(raw, axis=1, keepdims=True)
+        norm = np.where(norm == 0, 1.0, norm)
+        q_vec = (raw / norm).astype(np.float32)
         # IndexFlatIP returns descending scores
         scores, idxs = self._dense.search(q_vec, k_dense)
         dense_rank: dict[int, int] = {}

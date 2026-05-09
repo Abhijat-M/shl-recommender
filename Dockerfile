@@ -1,22 +1,23 @@
 # Multi-stage Dockerfile for the SHL Recommender.
 #
 # Stage 1 ("builder"): install Python deps and pre-bake the FAISS+BM25 index
-# from the catalog committed to the repo. This avoids hitting shl.com at
-# container startup and keeps cold starts fast.
+# from the catalog committed to the repo. This also caches the fastembed
+# ONNX model into /opt/fastembed_cache so the runtime image starts cold-fast.
 #
-# Stage 2 ("runtime"): minimal image with just deps + code + index + catalog.
+# Stage 2 ("runtime"): minimal image with just deps + code + index + catalog +
+# pre-cached ONNX model. Targets Render Free (512 MB RAM).
 #
 # Build:   docker build -t shl-recommender .
-# Run:     docker run --rm -p 8000:8000 -e GROQ_API_KEY=... shl-recommender
+# Run:     docker run --rm -p 8000:8000 -e GEMINI_API_KEY=... shl-recommender
 #
-# The image bakes in `data/catalog/catalog.json` and the built index, so the
-# container starts up serving immediately.
+# The image bakes in `data/catalog/catalog.json`, the built index, AND the
+# fastembed ONNX model so the container serves immediately with no network.
 
 FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-# System deps for sentence-transformers / faiss / lxml
+# System deps for faiss / lxml. fastembed (ONNX Runtime) needs no compiler.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libgomp1 \
@@ -31,7 +32,10 @@ COPY src ./src
 COPY scripts ./scripts
 COPY data/catalog ./data/catalog
 
-# Pre-build the FAISS+BM25 index inside the image so cold start is fast.
+# Pre-build the FAISS+BM25 index inside the image. fastembed downloads the
+# ONNX model into FASTEMBED_CACHE on first use; we direct it to a stable
+# path that we copy into the runtime image.
+ENV FASTEMBED_CACHE=/opt/fastembed_cache
 RUN python scripts/build_index.py
 
 # ---------------------------------------------------------------------------
@@ -47,16 +51,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Copy app + pre-built index + catalog.
+# Copy app + pre-built index + catalog + fastembed ONNX model cache.
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/data ./data
+COPY --from=builder /opt/fastembed_cache /opt/fastembed_cache
 
-# Embed-model cache lives under HF cache. We avoid baking it (it's ~90 MB)
-# but pre-warm at startup to keep first /chat fast.
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PORT=8000 \
-    HF_HOME=/tmp/hf
+    FASTEMBED_CACHE=/opt/fastembed_cache
 
 EXPOSE 8000
 

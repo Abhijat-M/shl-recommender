@@ -5,7 +5,10 @@ pydantic-settings==2.7.1
 httpx==0.28.1
 beautifulsoup4==4.12.3
 lxml==5.3.0
-sentence-transformers==3.3.1
+# Embeddings via ONNX Runtime instead of PyTorch — ~3x lighter resident
+# memory, fits Render Free's 512 MB cap. Same MiniLM weights.
+fastembed==0.8.0
+onnxruntime==1.26.0
 faiss-cpu==1.9.0.post1
 rank-bm25==0.2.2
 # Gemini (default LLM) is reached over its REST API via httpx — no SDK

@@ -47,19 +47,22 @@ def _normalize(arr: np.ndarray) -> np.ndarray:
 
 
 def _embed(model_name: str, texts: list[str]) -> np.ndarray:
-    """Embed a batch of texts. Imports are local to avoid heavy startup."""
-    from sentence_transformers import SentenceTransformer
+    """Embed a batch of texts via fastembed (ONNX Runtime).
 
-    model = SentenceTransformer(model_name)
-    LOG.info("Embedding %d documents with %s", len(texts), model_name)
-    embeddings = model.encode(
-        texts,
-        batch_size=32,
-        show_progress_bar=False,
-        convert_to_numpy=True,
-        normalize_embeddings=False,  # we normalize ourselves
-    )
-    return embeddings.astype(np.float32)
+    fastembed is a drop-in replacement for sentence-transformers that uses
+    ONNX Runtime instead of PyTorch — ~3x lighter resident memory, which
+    matters on hosts with a 512 MB cap (e.g. Render Free).
+
+    The function is local-imported so command-line tools that don't touch
+    embeddings don't pay the import cost.
+    """
+    from fastembed import TextEmbedding
+
+    model = TextEmbedding(model_name=model_name)
+    LOG.info("Embedding %d documents with %s (fastembed)", len(texts), model_name)
+    # fastembed.embed() is a generator yielding np.ndarray rows.
+    embeddings = np.asarray(list(model.embed(texts)), dtype=np.float32)
+    return embeddings
 
 
 def build(catalog_path: str | Path, index_dir: str | Path, model_name: str) -> int:
