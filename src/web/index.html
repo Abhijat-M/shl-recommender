@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#f8f5ef" />
+<meta name="color-scheme" content="light" />
+<title>SHL · Assessment Recommender</title>
+<style>
+  /* ===== reset ===================================================== */
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  button { font: inherit; cursor: pointer; background: none; border: 0; padding: 0; color: inherit; }
+  a { color: inherit; }
+  textarea { font: inherit; }
+
+  /* ===== design tokens — off-white + water glass ==================== */
+  :root {
+    color-scheme: light;
+
+    /* Off-white canvas */
+    --bg:           #f8f5ef;          /* warm off-white */
+    --bg-2:         #f3efe6;
+    --paper:        #fbf9f4;          /* paper/card highlight */
+
+    /* Translucent glass surfaces (sit on top of the gradient mesh) */
+    --glass:        rgba(255, 253, 247, 0.55);
+    --glass-strong: rgba(255, 253, 247, 0.78);
+    --glass-soft:   rgba(255, 253, 247, 0.35);
+    --glass-border: rgba(120, 110, 90, 0.14);
+    --glass-border-strong: rgba(120, 110, 90, 0.22);
+
+    /* Text */
+    --text:         #2a2520;
+    --text-2:       #5a544c;
+    --text-3:       #8a8378;
+    --text-4:       #b8b1a4;
+
+    /* Water-tinted accent */
+    --accent:       #0891b2;          /* cyan-700 (deep ocean) */
+    --accent-2:     #0e7490;
+    --accent-soft:  rgba(8, 145, 178, 0.10);
+    --accent-water: rgba(56, 189, 248, 0.18);
+    --accent-ink:   #ffffff;
+
+    --good:         #047857;
+    --warn:         #b45309;
+    --bad:          #b91c1c;
+
+    /* Soft, multi-layer water shadows */
+    --shadow-1:     0 1px 2px rgba(120, 110, 90, 0.06),
+                    0 1px 1px rgba(120, 110, 90, 0.04);
+    --shadow-2:     0 8px 32px -8px rgba(8, 145, 178, 0.12),
+                    0 2px 6px rgba(120, 110, 90, 0.06),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    --shadow-glass: 0 1px 0 rgba(255, 255, 255, 0.8) inset,
+                    0 -1px 0 rgba(120, 110, 90, 0.04) inset,
+                    0 8px 24px -12px rgba(8, 145, 178, 0.18),
+                    0 2px 8px rgba(120, 110, 90, 0.05);
+
+    --radius:       12px;
+    --radius-lg:    16px;
+
+    /* Test-type chips (water-tinted) */
+    --tt-A: #0e7490; --tt-A-bg: rgba(8,145,178,.12);
+    --tt-B: #b45309; --tt-B-bg: rgba(180,83,9,.10);
+    --tt-C: #6d28d9; --tt-C-bg: rgba(124,58,237,.10);
+    --tt-D: #be185d; --tt-D-bg: rgba(219,39,119,.10);
+    --tt-E: #be123c; --tt-E-bg: rgba(225,29,72,.10);
+    --tt-K: #1d4ed8; --tt-K-bg: rgba(37,99,235,.10);
+    --tt-P: #7e22ce; --tt-P-bg: rgba(147,51,234,.10);
+    --tt-S: #047857; --tt-S-bg: rgba(5,150,105,.10);
+  }
+
+  /* ===== base ====================================================== */
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text',
+                 'Segoe UI', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--text);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'cv02','cv03','cv04','cv11';
+    overflow: hidden;          /* the .water layer scrolls behind */
+  }
+
+  /* ===== "water" — animated gradient mesh under glass ============== */
+  .water {
+    position: fixed; inset: -10% -10% -10% -10%;
+    z-index: -1;
+    background:
+      radial-gradient(50% 40% at 18% 20%, rgba(125, 211, 252, 0.45), transparent 60%),
+      radial-gradient(45% 35% at 82% 8%,  rgba(196, 181, 253, 0.38), transparent 60%),
+      radial-gradient(40% 30% at 90% 80%, rgba(254, 215, 170, 0.42), transparent 65%),
+      radial-gradient(50% 40% at 12% 92%, rgba(165, 243, 252, 0.38), transparent 60%),
+      radial-gradient(35% 25% at 50% 50%, rgba(252, 231, 243, 0.30), transparent 70%);
+    filter: saturate(115%);
+    animation: drift 28s ease-in-out infinite alternate;
+  }
+  @keyframes drift {
+    0%   { transform: translate3d(0, 0, 0) scale(1); }
+    50%  { transform: translate3d(-2%, 1.5%, 0) scale(1.04); }
+    100% { transform: translate3d(2%, -1.5%, 0) scale(1.02); }
+  }
+  /* a subtle grain to break up the gradient banding */
+  .water::after {
+    content: ""; position: absolute; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.5;
+    mix-blend-mode: overlay;
+    pointer-events: none;
+  }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(120, 110, 90, 0.22); border-radius: 10px;
+    border: 2px solid transparent; background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(120, 110, 90, 0.38); background-clip: content-box;
+  }
+
+  /* ===== layout ==================================================== */
+  .app {
+    display: grid;
+    grid-template-rows: 64px 1fr;
+    grid-template-areas: "header" "main";
+    height: 100vh;
+  }
+
+  /* ===== header (frosted glass) ==================================== */
+  header {
+    grid-area: header;
+    display: flex; align-items: center; gap: 14px;
+    padding: 0 24px;
+    background: var(--glass);
+    backdrop-filter: saturate(140%) blur(20px);
+    -webkit-backdrop-filter: saturate(140%) blur(20px);
+    border-bottom: 1px solid var(--glass-border);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.8) inset, 0 4px 16px -8px rgba(8,145,178,0.10);
+    z-index: 5;
+  }
+  .brand { display: flex; align-items: baseline; gap: 10px; }
+  .brand .logo {
+    font-weight: 700; letter-spacing: -0.04em; font-size: 16px;
+    color: var(--text);
+  }
+  .brand .logo-dot { color: var(--accent); }
+  .brand .title {
+    font-size: 13px; font-weight: 500; color: var(--text-3);
+    letter-spacing: -0.005em;
+  }
+  .brand .model {
+    font-size: 11px; color: var(--text-3);
+    padding: 3px 9px; border-radius: 999px;
+    background: var(--glass-soft);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(8px);
+    font-feature-settings: 'tnum';
+  }
+  header .spacer { flex: 1; }
+
+  /* ===== main pane ================================================= */
+  main {
+    grid-area: main;
+    display: flex; flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .messages {
+    flex: 1; overflow-y: auto;
+    padding: 32px 24px 24px;
+    scroll-behavior: smooth;
+  }
+  .messages-inner {
+    max-width: 760px; margin: 0 auto;
+    display: flex; flex-direction: column; gap: 24px;
+  }
+
+  /* ===== empty state =============================================== */
+  .empty {
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center; padding: 64px 16px 24px;
+  }
+  .empty .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 12px; margin-bottom: 18px;
+    border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent);
+    border: 1px solid rgba(8, 145, 178, 0.16);
+    font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+    text-transform: uppercase;
+    backdrop-filter: blur(6px);
+  }
+  .empty h1 {
+    margin: 0 0 10px;
+    font-size: 30px; font-weight: 700;
+    letter-spacing: -0.028em;
+    color: var(--text);
+    background: linear-gradient(135deg, var(--text) 0%, var(--accent-2) 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .empty p {
+    margin: 0 0 32px;
+    font-size: 15px; color: var(--text-2); max-width: 540px;
+  }
+  .examples {
+    display: grid; gap: 10px;
+    grid-template-columns: 1fr 1fr;
+    width: 100%; max-width: 640px;
+  }
+  @media (max-width: 600px) { .examples { grid-template-columns: 1fr; } }
+  .examples button {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 14px 16px;
+    text-align: left;
+    border-radius: var(--radius);
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    color: var(--text-2);
+    font-size: 13px;
+    backdrop-filter: blur(14px);
+    box-shadow: var(--shadow-1);
+    transition: all 0.2s ease;
+  }
+  .examples button:hover {
+    border-color: rgba(8, 145, 178, 0.35);
+    color: var(--text);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-2);
+    background: var(--glass-strong);
+  }
+  .examples button .arrow {
+    color: var(--text-4); transition: color 0.18s ease, transform 0.18s ease;
+    margin-left: auto;
+  }
+  .examples button:hover .arrow {
+    color: var(--accent);
+    transform: translateX(2px);
+  }
+
+  /* ===== messages ================================================== */
+  .msg {
+    display: flex; gap: 12px;
+    animation: in 0.3s ease both;
+  }
+  @keyframes in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .msg .avatar {
+    flex-shrink: 0;
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: var(--glass-strong);
+    border: 1px solid var(--glass-border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600;
+    color: var(--text-3);
+    margin-top: 2px;
+    backdrop-filter: blur(8px);
+    box-shadow: var(--shadow-1);
+  }
+  .msg.user .avatar {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    border-color: transparent;
+    color: var(--accent-ink);
+    box-shadow: 0 4px 12px -4px rgba(8, 145, 178, 0.4);
+  }
+  .msg .content { flex: 1; min-width: 0; }
+  .msg .role {
+    font-size: 12px; font-weight: 600;
+    color: var(--text-2);
+    margin-bottom: 4px;
+    letter-spacing: -0.005em;
+  }
+  .msg .body {
+    font-size: 15px; line-height: 1.6;
+    color: var(--text);
+    white-space: pre-wrap; word-break: break-word;
+  }
+
+  .typing {
+    display: inline-flex; gap: 4px; padding: 8px 0;
+  }
+  .typing span {
+    width: 6px; height: 6px;
+    background: var(--text-4); border-radius: 50%;
+    animation: blink 1.2s infinite ease-in-out both;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.15s; }
+  .typing span:nth-child(3) { animation-delay: 0.30s; }
+  @keyframes blink {
+    0%,80%,100% { opacity: 0.20; transform: scale(0.85); }
+    40%         { opacity: 1;     transform: scale(1); }
+  }
+
+  /* ===== recommendation cards (glass) ============================== */
+  .recs {
+    margin-top: 14px;
+    display: grid; gap: 8px;
+  }
+  .rec {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
+    backdrop-filter: blur(14px);
+    box-shadow: var(--shadow-1);
+    transition: all 0.18s ease;
+  }
+  .rec:hover {
+    border-color: var(--glass-border-strong);
+    background: var(--glass-strong);
+    box-shadow: var(--shadow-glass);
+    transform: translateY(-1px);
+  }
+  .rec .info { flex: 1; min-width: 0; }
+  .rec .name {
+    font-weight: 500; font-size: 14px;
+    color: var(--text);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    letter-spacing: -0.005em;
+  }
+  .rec .url {
+    font-size: 12px; color: var(--text-3);
+    margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-feature-settings: 'tnum';
+  }
+  .rec .types {
+    display: flex; gap: 4px;
+  }
+  .chip {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px;
+    border-radius: 6px;
+    font-size: 11px; font-weight: 700;
+    background: var(--glass-soft);
+    color: var(--text-3);
+    border: 1px solid var(--glass-border);
+    transition: transform 0.15s ease;
+  }
+  .chip[data-tt="A"] { color: var(--tt-A); background: var(--tt-A-bg); border-color: rgba(8,145,178,.20); }
+  .chip[data-tt="B"] { color: var(--tt-B); background: var(--tt-B-bg); border-color: rgba(180,83,9,.20); }
+  .chip[data-tt="C"] { color: var(--tt-C); background: var(--tt-C-bg); border-color: rgba(124,58,237,.20); }
+  .chip[data-tt="D"] { color: var(--tt-D); background: var(--tt-D-bg); border-color: rgba(219,39,119,.20); }
+  .chip[data-tt="E"] { color: var(--tt-E); background: var(--tt-E-bg); border-color: rgba(225,29,72,.20); }
+  .chip[data-tt="K"] { color: var(--tt-K); background: var(--tt-K-bg); border-color: rgba(37,99,235,.20); }
+  .chip[data-tt="P"] { color: var(--tt-P); background: var(--tt-P-bg); border-color: rgba(147,51,234,.20); }
+  .chip[data-tt="S"] { color: var(--tt-S); background: var(--tt-S-bg); border-color: rgba(5,150,105,.20); }
+  .rec a.ext {
+    color: var(--text-4);
+    transition: color 0.15s ease;
+    flex-shrink: 0;
+    text-decoration: none;
+    font-size: 16px;
+  }
+  .rec a.ext:hover { color: var(--accent); }
+
+  /* ===== composer (frosted glass) ================================== */
+  .composer {
+    background: var(--glass);
+    backdrop-filter: saturate(140%) blur(20px);
+    -webkit-backdrop-filter: saturate(140%) blur(20px);
+    border-top: 1px solid var(--glass-border);
+    padding: 18px 24px 22px;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.7) inset, 0 -4px 16px -8px rgba(8,145,178,0.08);
+  }
+  .composer-inner {
+    max-width: 760px; margin: 0 auto;
+    display: flex; gap: 8px; align-items: flex-end;
+    padding: 6px;
+    background: var(--glass-strong);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(16px);
+    box-shadow: var(--shadow-glass);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .composer-inner:focus-within {
+    border-color: rgba(8, 145, 178, 0.45);
+    box-shadow: 0 0 0 4px var(--accent-soft), var(--shadow-glass);
+  }
+  .composer textarea {
+    flex: 1;
+    resize: none;
+    min-height: 36px; max-height: 200px;
+    padding: 10px 12px;
+    border: 0; outline: 0;
+    background: transparent;
+    color: var(--text);
+    font-size: 14px; line-height: 1.5;
+  }
+  .composer textarea::placeholder { color: var(--text-3); }
+  .composer .btn {
+    height: 36px; padding: 0 14px;
+    border-radius: 8px;
+    font-size: 13px; font-weight: 500;
+    transition: all 0.15s ease;
+    display: inline-flex; align-items: center; gap: 6px;
+    flex-shrink: 0;
+  }
+  .composer .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: var(--accent-ink);
+    box-shadow: 0 2px 8px -2px rgba(8, 145, 178, 0.45);
+  }
+  .composer .btn-primary:hover:not([disabled]) {
+    box-shadow: 0 4px 12px -2px rgba(8, 145, 178, 0.55);
+    transform: translateY(-1px);
+  }
+  .composer .btn-primary[disabled] {
+    opacity: 0.4; cursor: not-allowed;
+  }
+  .composer .btn-ghost {
+    color: var(--text-3);
+    padding: 0 10px;
+  }
+  .composer .btn-ghost:hover {
+    color: var(--text);
+    background: var(--glass-soft);
+  }
+  .composer .hint {
+    margin-top: 10px; max-width: 760px; margin-left: auto; margin-right: auto;
+    font-size: 11px; color: var(--text-3); text-align: center;
+    font-feature-settings: 'tnum';
+  }
+  kbd {
+    display: inline-block; padding: 1px 6px;
+    font-size: 10px; font-family: inherit; font-weight: 600;
+    border: 1px solid var(--glass-border);
+    border-radius: 4px;
+    background: var(--glass-soft);
+    color: var(--text-3);
+    line-height: 1.5;
+    backdrop-filter: blur(4px);
+  }
+</style>
+</head>
+<body>
+<div class="water" aria-hidden="true"></div>
+<div class="app">
+  <header>
+    <div class="brand">
+      <div class="logo">SHL<span class="logo-dot">.</span></div>
+      <div class="title">Assessment Recommender</div>
+      <div class="model" id="modelLabel"></div>
+    </div>
+    <div class="spacer"></div>
+  </header>
+
+  <main>
+    <div class="messages" id="messages">
+      <div class="messages-inner" id="messagesInner">
+        <div class="empty" id="emptyState">
+          <span class="badge">Grounded · Catalog-only</span>
+          <h1>What are you hiring for?</h1>
+          <p>Describe the role and I'll shortlist SHL Individual Test Solutions.
+             I can clarify, refine, compare, and refuse off-topic.</p>
+          <div class="examples">
+            <button data-prompt="Hiring a mid-level Java developer who works with stakeholders">
+              <span>Java developer · mid-level</span>
+              <span class="arrow">→</span>
+            </button>
+            <button data-prompt="Hiring a senior sales manager — what assessments fit?">
+              <span>Senior sales manager</span>
+              <span class="arrow">→</span>
+            </button>
+            <button data-prompt="What's the difference between OPQ32r and SHL Verify Numerical Reasoning?">
+              <span>Compare two assessments</span>
+              <span class="arrow">→</span>
+            </button>
+            <button data-prompt="Need a personality test under 30 minutes for graduates">
+              <span>Personality · graduates · short</span>
+              <span class="arrow">→</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="composer">
+      <div class="composer-inner">
+        <textarea id="input" placeholder="Describe the role you're hiring for…"
+                  rows="1" autofocus aria-label="Message"></textarea>
+        <button id="resetBtn" class="btn btn-ghost" title="Reset conversation"
+                aria-label="Reset">Reset</button>
+        <button id="sendBtn" class="btn btn-primary" aria-label="Send">
+          Send <span aria-hidden="true">→</span>
+        </button>
+      </div>
+      <div class="hint">
+        Press <kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> for newline
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(() => {
+  const API = "";
+  const $ = (s) => document.querySelector(s);
+
+  const messagesEl = $("#messagesInner");
+  const inputEl    = $("#input");
+  const sendBtn    = $("#sendBtn");
+  const resetBtn   = $("#resetBtn");
+  const modelLabel = $("#modelLabel");
+  const emptyState = $("#emptyState");
+
+  let history = [];
+
+  const escapeHtml = (s) => String(s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+
+  const chips = (letters) => {
+    const out = [];
+    for (const ch of String(letters || "")) {
+      if (/[A-Z]/.test(ch)) out.push(`<span class="chip" data-tt="${ch}" title="${ttName(ch)}">${ch}</span>`);
+    }
+    return out.join("") || `<span class="chip">·</span>`;
+  };
+  const ttName = (c) => ({
+    A:"Ability & Aptitude",  B:"Biodata & SJT",   C:"Competencies",
+    D:"Development & 360",   E:"Exercises",       K:"Knowledge & Skills",
+    P:"Personality & Behavior", S:"Simulations"
+  }[c] || c);
+
+  const autoGrow = (el) => {
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 200) + "px";
+  };
+
+  const scrollToBottom = () => {
+    const c = $("#messages");
+    requestAnimationFrame(() => { c.scrollTop = c.scrollHeight; });
+  };
+
+  function renderMessage(role, text, recs) {
+    if (emptyState && emptyState.parentNode) emptyState.remove();
+    const wrap = document.createElement("div");
+    wrap.className = `msg ${role}`;
+
+    const av = document.createElement("div");
+    av.className = "avatar";
+    av.textContent = role === "user" ? "You" : "AI";
+
+    const body = document.createElement("div");
+    body.className = "content";
+    body.innerHTML = `
+      <div class="role">${role === "user" ? "You" : "Agent"}</div>
+      <div class="body">${escapeHtml(text)}</div>
+    `;
+
+    if (recs && recs.length) {
+      const grid = document.createElement("div");
+      grid.className = "recs";
+      grid.innerHTML = recs.map(r => `
+        <div class="rec">
+          <div class="types">${chips(r.test_type)}</div>
+          <div class="info">
+            <div class="name">${escapeHtml(r.name)}</div>
+            <div class="url">${escapeHtml(prettyUrl(r.url))}</div>
+          </div>
+          <a class="ext" href="${escapeHtml(r.url)}" target="_blank" rel="noopener" title="Open in catalog">↗</a>
+        </div>
+      `).join("");
+      body.appendChild(grid);
+    }
+
+    wrap.appendChild(av);
+    wrap.appendChild(body);
+    messagesEl.appendChild(wrap);
+    scrollToBottom();
+  }
+  function prettyUrl(u) {
+    try {
+      const x = new URL(u);
+      return x.host + x.pathname;
+    } catch { return u; }
+  }
+  function renderTyping() {
+    const wrap = document.createElement("div");
+    wrap.className = "msg assistant"; wrap.id = "typingIndicator";
+    wrap.innerHTML = `
+      <div class="avatar">AI</div>
+      <div class="content">
+        <div class="role">Agent</div>
+        <div class="typing"><span></span><span></span><span></span></div>
+      </div>`;
+    messagesEl.appendChild(wrap);
+    scrollToBottom();
+  }
+  function clearTyping() {
+    document.getElementById("typingIndicator")?.remove();
+  }
+
+  async function send() {
+    const text = inputEl.value.trim();
+    if (!text) return;
+    inputEl.value = ""; autoGrow(inputEl);
+    sendBtn.disabled = true;
+
+    history.push({ role: "user", content: text });
+    renderMessage("user", text);
+    renderTyping();
+
+    try {
+      const r = await fetch(API + "/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: history }),
+      });
+      const body = await r.json();
+      clearTyping();
+      if (!r.ok) {
+        renderMessage("assistant", `Error ${r.status}: ${body.detail || JSON.stringify(body)}`);
+      } else {
+        renderMessage("assistant", body.reply || "(empty reply)", body.recommendations || []);
+        history.push({ role: "assistant", content: body.reply || "" });
+      }
+    } catch (err) {
+      clearTyping();
+      renderMessage("assistant", "Network error: " + err.message);
+    }
+    sendBtn.disabled = false;
+    inputEl.focus();
+  }
+
+  function reset() {
+    history = [];
+    messagesEl.innerHTML = "";
+    messagesEl.appendChild(emptyState);
+    inputEl.focus();
+  }
+
+  async function loadVersion() {
+    try {
+      const v = await fetch(API + "/version").then(x => x.json());
+      modelLabel.textContent = v.model || "";
+    } catch { /* ignore */ }
+  }
+
+  sendBtn.addEventListener("click", send);
+  resetBtn.addEventListener("click", reset);
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+  inputEl.addEventListener("input", () => autoGrow(inputEl));
+  document.querySelectorAll(".examples button").forEach(b => {
+    b.addEventListener("click", () => {
+      inputEl.value = b.dataset.prompt; autoGrow(inputEl); inputEl.focus();
+    });
+  });
+  loadVersion();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+# Pre-commit runs the same lint/format checks as CI before each commit.
+# Install once with `pre-commit install`; thereafter every commit triggers it.
+#
+# To run on the whole tree: `pre-commit run --all-files`
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-added-large-files
+        args: [--maxkb=2000]
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: detect-private-key
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        files: ^src/
+        additional_dependencies:
+          - pydantic==2.10.4
+          - pydantic-settings==2.7.1
+          - types-beautifulsoup4
+        args: [--config-file=pyproject.toml]

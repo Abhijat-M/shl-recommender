@@ -1,0 +1,70 @@
+[project]
+name = "shl-recommender"
+version = "0.1.0"
+description = "Conversational SHL Assessment Recommender (FastAPI agent over Individual Test Solutions catalog)"
+authors = [{name = "Abhijat", email = "soccka@zohomail.in"}]
+requires-python = ">=3.11"
+readme = "README.md"
+license = {text = "MIT"}
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [".venv", "scripts/probe_*.py"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+    "SIM", # flake8-simplify
+    "C4",  # flake8-comprehensions
+    "RUF", # ruff-specific
+]
+ignore = [
+    "E501", # line too long; the formatter handles this
+    "B008", # function-call default argument (FastAPI Depends pattern)
+    "RUF013", # implicit Optional (intentional in some signatures)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["E402"]  # late imports in test fixtures
+"scripts/**/*.py" = ["E402"]  # sys.path mutations before imports
+
+[tool.mypy]
+python_version = "3.11"
+strict = false  # gradual; turn modules on one at a time
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+check_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_decorators = false
+ignore_missing_imports = true
+exclude = [
+    "^scripts/",
+    "^\\.venv/",
+]
+
+[[tool.mypy.overrides]]
+module = ["faiss", "rank_bm25", "sentence_transformers"]
+ignore_missing_imports = true

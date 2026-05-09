@@ -1,0 +1,31 @@
+# Render Blueprint for the SHL Recommender service.
+#
+# Free instance type means the service sleeps after ~15 min of idle and takes
+# ~30-90 s to wake up. The SHL evaluator allows up to 2 minutes for the first
+# /health call to succeed, which we honor.
+#
+# Deploy by connecting this repo on render.com -> "New from Blueprint".
+# Set GROQ_API_KEY as a secret in the Render dashboard before the first deploy.
+
+services:
+  - type: web
+    name: shl-recommender
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false                  # set in dashboard, never committed
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
+      - key: LOG_LEVEL
+        value: INFO
+      - key: EMBEDDING_MODEL
+        value: sentence-transformers/all-MiniLM-L6-v2
+      - key: PORT
+        value: "10000"               # Render's default for web services
+      - key: HF_HOME
+        value: /tmp/hf

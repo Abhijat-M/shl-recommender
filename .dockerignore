@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.git/
+.github/
+data/index/
+docs/
+tests/
+*.log
+eval_report.json
+.env
+.env.*
+!.env.example
