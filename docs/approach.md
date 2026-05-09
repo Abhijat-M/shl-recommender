@@ -1,6 +1,6 @@
 # SHL Conversational Assessment Recommender — Approach
 
-**Author:** Abhijat · **Stack:** FastAPI · Gemini Flash (multi-model fallback chain) · FAISS + BM25 · sentence-transformers (MiniLM-L6-v2) · Render
+**Author:** Abhijat · **Stack:** FastAPI · Gemini Flash (multi-model fallback chain) · FAISS + BM25 · fastembed (MiniLM-L6-v2 via ONNX Runtime) · Render Free
 
 ## 1. What I built
 
@@ -52,7 +52,9 @@ levels, languages, and assessment length. Final catalog: **377 assessments**,
 **Hybrid retrieval.** Each catalog row becomes one document combining name,
 test-type names, job levels, languages, length, and description. I index
 with two methods:
-- **Dense:** sentence-transformers `all-MiniLM-L6-v2` (384-dim) into a FAISS
+- **Dense:** `all-MiniLM-L6-v2` (384-dim) loaded via **fastembed**
+  (ONNX Runtime, ~3× lighter than sentence-transformers — see ADR-0010)
+  into a FAISS
   `IndexFlatIP` (cosine via L2-normalization). Exact search at this scale is
   sub-millisecond.
 - **Sparse:** `rank_bm25.BM25Okapi` over the same corpus. Catches exact
@@ -140,8 +142,10 @@ without any LLM call.
   `responseMimeType: application/json` is rock-solid. The agent depends
   on a small `LLMClient` protocol, so a different backend is a one-file
   swap if needed; see ADR-0008.
-- **MiniLM-L6-v2** — 384-dim, ~80 MB, runs on CPU under 5 ms/query. A bigger
-  model gave marginal recall gains but doubled cold-start time.
+- **MiniLM-L6-v2 via fastembed** — 384-dim, ~80 MB on disk, runs on CPU
+  under 20 ms/query. A bigger model gave marginal recall gains but
+  doubled cold-start time. fastembed (ONNX Runtime) replaces
+  sentence-transformers (PyTorch) to fit Render Free's 512 MB RAM cap.
 - **FAISS + BM25 + RRF** — small catalog (377), exact search is fine, no
   external service to manage. RRF is the simplest fusion that doesn't depend
   on score calibration.

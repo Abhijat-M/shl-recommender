@@ -141,7 +141,7 @@ from `catalog.json` automatically (multi-stage Dockerfile).
 
 | File | Purpose |
 |------|---------|
-| `dense.faiss` | FAISS `IndexFlatIP` over L2-normalized MiniLM embeddings (384-dim) |
+| `dense.faiss` | FAISS `IndexFlatIP` over L2-normalized MiniLM embeddings (384-dim, via fastembed/ONNX) |
 | `embeddings.npy` | Raw normalized embedding matrix (used for warm-restarts of indexing experiments) |
 | `bm25.pkl` | `rank_bm25.BM25Okapi` instance + the tokenized corpus |
 | `documents.pkl` | The `search_text()` string per assessment (in catalog order) |

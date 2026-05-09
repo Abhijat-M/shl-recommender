@@ -81,8 +81,10 @@ pytest -k injection             # name filter
 pytest --cov=src                # with coverage
 ```
 
-The first run takes ~100 s because the conftest builds a small in-memory
-FAISS index. Subsequent runs reuse the session-scoped fixture.
+The first run takes ~12 s; subsequent runs reuse the session-scoped
+FAISS+BM25 fixture (built once via fastembed). Before the fastembed
+swap (ADR-0010) the suite took ~100 s due to PyTorch import time at
+fixture-load.
 
 ### Lint + type-check
 
@@ -196,7 +198,7 @@ async def test_my_thing(orchestrator, fake_llm):
 
 * `ruff` config in `pyproject.toml`. Line length 100.
 * `mypy` mode is "gradual" — strict on most modules; `Any` on the
-  faiss/sentence_transformers boundary because their types are unstable.
+  faiss/fastembed boundary because their types are unstable.
 * Files capped at ~500 lines (a soft guideline; the orchestrator is the
   largest at ~570).
 * No comments that just explain *what*; only *why* the code is non-obvious.

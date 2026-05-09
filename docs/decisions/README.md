@@ -15,3 +15,4 @@ decision, consequences.
 | 0007 | [In-memory rate limiter and metrics](0007-in-memory-state.md) | Accepted |
 | 0008 | [Gemini LLM provider with multi-model fallback](0008-pluggable-llm-provider.md) | Accepted |
 | 0009 | [Graceful degradation when the LLM is unavailable](0009-graceful-degradation.md) | Accepted |
+| 0010 | [Embeddings via fastembed (ONNX Runtime)](0010-fastembed-onnx.md) | Accepted |

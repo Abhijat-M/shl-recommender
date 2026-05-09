@@ -7,6 +7,8 @@ through dialogue. Built for the SHL Labs AI Intern take-home.
 
 Python 3.11+ · MIT licensed · 107 passing tests · 377-item SHL catalog
 
+🌐 **Live demo:** https://shl-recommender-yxcn.onrender.com
+
 ---
 
 ## Table of Contents
@@ -22,6 +24,23 @@ Python 3.11+ · MIT licensed · 107 passing tests · 377-item SHL catalog
 - [License](#license)
 
 ---
+
+## Live demo
+
+| | |
+|---|---|
+| **API** | https://shl-recommender-yxcn.onrender.com |
+| **Chat UI** | https://shl-recommender-yxcn.onrender.com/ |
+| **Swagger** | https://shl-recommender-yxcn.onrender.com/docs |
+
+```bash
+curl https://shl-recommender-yxcn.onrender.com/health
+# {"status":"ok"}
+```
+
+Render Free instances sleep after ~15 min idle; the first request
+after a quiet period takes 30-90 s to wake the container. The SHL
+spec allows up to 2 minutes for the first `/health` call.
 
 ## What it does
 
@@ -77,7 +96,7 @@ client ──> POST /chat ──> Orchestrator (stateless)
 Stack:
 - **FastAPI** + Pydantic (schema-strict)
 - **Gemini Flash** (free tier, 20 RPD × 4-model fallback chain) — wired behind a small `LLMClient` protocol so a different backend is a one-file swap if needed
-- **sentence-transformers** MiniLM-L6-v2 (384-dim) → **FAISS** IndexFlatIP
+- **fastembed** (ONNX Runtime) MiniLM-L6-v2 (384-dim) → **FAISS** IndexFlatIP
 - **rank_bm25** Okapi → **Reciprocal Rank Fusion**
 - In-process: structured JSON logs, request IDs, token-bucket rate
   limiter, Prometheus `/metrics`, security headers
@@ -159,7 +178,7 @@ shl-recommender/
 ## Tests + evaluation
 
 ```bash
-pytest                          # full suite — 107 tests, ~150 s
+pytest                          # full suite — 107 tests, ~12 s
 ruff check src tests scripts    # lint
 mypy src                        # type-check
 

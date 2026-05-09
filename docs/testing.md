@@ -148,7 +148,7 @@ The factory wires up the Gemini backend by default. Tests cover:
 ## How to run
 
 ```bash
-pytest                          # full suite (~100 s)
+pytest                          # full suite (~12 s after the ADR-0010 fastembed swap)
 pytest -q                       # quiet
 pytest tests/test_api.py        # one file
 pytest -k injection             # name filter

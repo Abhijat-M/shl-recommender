@@ -24,7 +24,7 @@ Liveness probe. Always returns `200 {"status":"ok"}` when the process is up.
 It does **not** confirm the index is loaded — use `/ready` for that.
 
 ```bash
-curl https://YOUR_HOST/health
+curl https://shl-recommender-yxcn.onrender.com/health
 ```
 
 ```json
@@ -44,7 +44,7 @@ Returns `503` otherwise. Use this for orchestration readiness checks
 warm-up; promote to `/ready` if you control rollout).
 
 ```bash
-curl https://YOUR_HOST/ready
+curl https://shl-recommender-yxcn.onrender.com/ready
 ```
 
 ```json
@@ -58,7 +58,7 @@ curl https://YOUR_HOST/ready
 Build/version metadata for diagnostics.
 
 ```bash
-curl https://YOUR_HOST/version
+curl https://shl-recommender-yxcn.onrender.com/version
 ```
 
 ```json
@@ -66,7 +66,7 @@ curl https://YOUR_HOST/version
   "name": "shl-recommender",
   "version": "0.1.0",
   "model": "gemini:gemini-flash-latest",
-  "embedding_model": "sentence-transformers/all-MiniLM-L6-v2"
+  "embedding_model": "sentence-transformers/all-MiniLM-L6-v2 (via fastembed)"
 }
 ```
 
@@ -171,7 +171,7 @@ history every call.
 #### Clarify on vague intent
 
 ```bash
-curl -X POST https://YOUR_HOST/chat \
+curl -X POST https://shl-recommender-yxcn.onrender.com/chat \
   -H "Content-Type: application/json" \
   -d '{"messages":[{"role":"user","content":"I need a test"}]}'
 ```
@@ -187,7 +187,7 @@ curl -X POST https://YOUR_HOST/chat \
 #### Recommend with sufficient context
 
 ```bash
-curl -X POST https://YOUR_HOST/chat \
+curl -X POST https://shl-recommender-yxcn.onrender.com/chat \
   -H "Content-Type: application/json" \
   -d '{
     "messages":[
@@ -210,7 +210,7 @@ curl -X POST https://YOUR_HOST/chat \
 #### Refuse off-topic
 
 ```bash
-curl -X POST https://YOUR_HOST/chat \
+curl -X POST https://shl-recommender-yxcn.onrender.com/chat \
   -H "Content-Type: application/json" \
   -d '{"messages":[{"role":"user","content":"Tell me a joke"}]}'
 ```

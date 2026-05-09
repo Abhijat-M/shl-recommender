@@ -6,6 +6,33 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added (2026-05-09 deployment to Render)
+- **Live deployment** at `https://shl-recommender-yxcn.onrender.com`
+  on Render Free (512 MB RAM tier).
+- **GitHub Actions CI workflow** (`.github/workflows/ci.yml`) — runs
+  ruff + mypy + pytest on Python 3.11 / 3.12 plus a Docker build sanity
+  check on every push and PR.
+- **ADR-0010** documenting the fastembed migration and its rationale.
+
+### Changed (deploy-driven)
+- **Embeddings: `sentence-transformers` → `fastembed` (ONNX Runtime)** —
+  same `all-MiniLM-L6-v2` weights (byte-identical), but loaded via
+  ONNX Runtime instead of PyTorch. Resident memory dropped from
+  ~500-600 MB to ~180-250 MB, fitting Render Free's 512 MB cap. Image
+  ~600 MB smaller, pytest ~12 s instead of ~100-150 s.
+- `requirements.txt`: dropped `sentence-transformers`, added
+  `fastembed==0.8.0` + `onnxruntime==1.26.0`.
+- `Dockerfile`: builder stage caches the ONNX weights at
+  `/opt/fastembed_cache`; runtime stage `COPY`s them so first request
+  needs no network.
+- `src/retrieval/indexer.py` and `src/retrieval/retriever.py` pass
+  `cache_dir` explicitly to `TextEmbedding(...)` from the
+  `FASTEMBED_CACHE_DIR` env var — fastembed's own env var name is
+  unstable across versions; passing the kwarg is foolproof.
+- `render.yaml`: env vars renamed from `GROQ_API_KEY`/`GROQ_MODEL` to
+  `GEMINI_API_KEY`/`GEMINI_MODEL`/`GEMINI_FALLBACK_MODELS` (initial
+  blueprint was stale from the pluggability work).
+
 ### Added
 - **`LLMClient` protocol + Gemini backend** (ADR-0008). New
   `GeminiClient` (REST over httpx; JSON mode via

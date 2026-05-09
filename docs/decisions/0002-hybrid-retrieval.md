@@ -20,7 +20,12 @@ Two failure modes must be avoided:
 
 Combine two retrieval methods and fuse the rankings:
 
-* **Dense:** `sentence-transformers/all-MiniLM-L6-v2` (384-dim) into a FAISS
+* **Dense:** `all-MiniLM-L6-v2` (384-dim) — originally loaded via
+  `sentence-transformers`; later swapped to **fastembed** (ONNX Runtime)
+  to fit Render Free's 512 MB RAM cap. See ADR-0010 for the migration
+  rationale. The model weights are byte-identical, so this ADR's
+  retrieval algorithm and quality claims still hold.
+  Indexed into a FAISS
   `IndexFlatIP` (cosine similarity via L2-normalization). Top-25.
 * **Sparse:** `rank_bm25.BM25Okapi` over an alphanumeric-tokenized corpus.
   Top-25.

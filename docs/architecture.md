@@ -133,8 +133,8 @@ API never imports FAISS. This keeps each piece testable in isolation.
 
 7. **Hybrid Retrieval** (`retrieval/retriever.py::search`)
    * Cache key = `(query, filters, top_k)`. LRU-128. Hit returns cached list.
-   * Dense: encode query with MiniLM (384-dim, normalized), FAISS IndexFlatIP
-     top-25.
+   * Dense: encode query with MiniLM via fastembed (ONNX Runtime, 384-dim,
+     normalized), FAISS IndexFlatIP top-25.
    * Sparse: BM25Okapi top-25.
    * Fuse with Reciprocal Rank Fusion: `score = Σ 1/(60 + rank_i)`.
    * Apply soft filters (test types from slots; remote testing). If filters
@@ -173,7 +173,7 @@ shl.com /products/product-catalog/?start=N&type=1
          ▼
    build_index.py
      - Build retrieval doc per assessment (search_text())
-     - Embed with MiniLM-L6-v2 (384-dim, L2-normalized)
+     - Embed with MiniLM-L6-v2 via fastembed/ONNX (384-dim, L2-normalized)
      - FAISS IndexFlatIP
      - rank_bm25 BM25Okapi (alphanumeric tokenizer)
          │
@@ -215,7 +215,7 @@ rationale and ADR-0008 for the multi-model fallback chain that runs
 | `/ready`                           | < 5 ms                       |
 | FAISS search (377 docs)            | ~ 1 ms                       |
 | BM25 search                        | ~ 5 ms                       |
-| MiniLM encode (1 query)            | ~ 30 ms                      |
+| MiniLM encode (1 query, fastembed) | ~ 20 ms                      |
 | LLM round trip (Gemini Flash Lite) | 400-700 ms                   |
 | LLM round trip (Gemini 2.5 Flash)  | 700 ms - 1.5 s               |
 | `/chat` (clarify)                  | 600 ms - 1.5 s (1 LLM call)  |
@@ -234,7 +234,11 @@ Three forces shaped the design:
   of "LLM picks indices, not names" + URL allowlist + index built only from
   scraped data means the agent has no way to surface a non-catalog item.
 - **Cold-start sensitivity.** Render's free tier sleeps. The image bakes
-  catalog + index; only the embedding model is fetched on boot (~5 s).
+  catalog, FAISS+BM25 index, AND the ONNX embedding weights — the
+  runtime container starts with no network calls. Cold start is ~5-10 s.
+- **Memory ceiling.** Render Free has a 512 MB RAM cap. fastembed
+  (ONNX Runtime) keeps resident memory ~180-250 MB; sentence-transformers
+  (PyTorch) crossed the cap at ~500-600 MB. See ADR-0010.
 - **Provider availability.** Free-tier LLM quotas are tight (e.g., Gemini
   20 RPD per model). ADR-0008's multi-model chain plus ADR-0009's
   retrieval-only fallback keep the agent useful under total LLM outage.

@@ -10,7 +10,8 @@ to Render via `render.yaml`. Most procedures generalize to any Docker host.
 | `GEMINI_API_KEY`        | yes      | —                                             | https://aistudio.google.com/app/apikey |
 | `GEMINI_MODEL`          | no       | `gemini-flash-latest`                         | Free-tier candidates: `gemini-flash-latest`, `gemini-2.5-flash`, `gemini-2.0-flash`, `gemini-2.5-flash-lite` (each has its own 20 RPD quota) |
 | `GEMINI_FALLBACK_MODELS`| no       | `gemini-2.5-flash,gemini-2.0-flash,gemini-2.5-flash-lite` | Comma-separated model chain. On a daily-quota 429 we slide to the next; per-minute 429s still retry on the same model. |
-| `EMBEDDING_MODEL`       | no       | `sentence-transformers/all-MiniLM-L6-v2`      | Must match the index built into the image |
+| `EMBEDDING_MODEL`       | no       | `sentence-transformers/all-MiniLM-L6-v2`      | Loaded via fastembed (ONNX Runtime). Must match the index built into the image. |
+| `FASTEMBED_CACHE_DIR`   | no       | `/opt/fastembed_cache` (set in Dockerfile)    | Where the ONNX weights are cached. The Docker image bakes them at build time so runtime needs no network. |
 | `APP_HOST`              | no       | `0.0.0.0`                                     | |
 | `APP_PORT` / `PORT`     | no       | `8000` / `10000` (Render)                     | Render injects `PORT`; we honor it |
 | `LOG_LEVEL`             | no       | `INFO`                                        | `DEBUG`/`INFO`/`WARNING`/`ERROR` |
@@ -26,7 +27,7 @@ to Render via `render.yaml`. Most procedures generalize to any Docker host.
 | `RRF_K`                 | no       | `60`                                          | RRF dampening constant |
 | `CATALOG_PATH`          | no       | `data/catalog/catalog.json`                   | Relative to project root |
 | `INDEX_DIR`             | no       | `data/index`                                  | Relative to project root |
-| `HF_HOME`               | no       | `/tmp/hf`                                     | Where MiniLM weights cache |
+| `HF_HOME`               | no       | `/tmp/hf`                                     | HuggingFace hub cache (used by fastembed under the hood when downloading the ONNX weights at build time). |
 
 ## Deploy to Render (first time)
 

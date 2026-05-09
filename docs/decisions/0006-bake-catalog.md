@@ -23,7 +23,8 @@ The Docker image bakes:
   (built by `scripts/build_index.py` during `docker build`).
 
 The running container only fetches the embedding model
-(`sentence-transformers/all-MiniLM-L6-v2`, ~80 MB) on first boot, cached
+(`all-MiniLM-L6-v2` ONNX export via fastembed, ~80 MB) — the weights
+are now baked into the image at build time (see ADR-0010), cached
 under `HF_HOME=/tmp/hf`.
 
 A multi-stage Dockerfile separates the build environment (heavy ML deps
